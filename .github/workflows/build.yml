@@ -1,4 +1,4 @@
-name: SyriaMap APK
+name: بناء APK تطبيق خريطة سوريا
 
 on:
   workflow_dispatch:
@@ -11,47 +11,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: تحميل المشروع
         uses: actions/checkout@v4
 
       - name: إعداد Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       - name: إعداد Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: true
+          packages: platform-tools
 
-      - name: تثبيت أدوات Android
+      - name: تثبيت Android 35
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: فك المشروع الأخير
+      - name: العثور على ملف المشروع
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*FINAL_LATEST_FEATURES*.zip' | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "لم يتم العثور على ملف المشروع"
+            exit 1
+          fi
+
+          echo "ملف المشروع: $ZIP_FILE"
+          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
+
+      - name: فك المشروع
         run: |
           rm -rf build-src
-          mkdir build-src
-          unzip -q "SyriaMap_FINAL_LATEST_FEATURES.zip" -d build-src
+          mkdir -p build-src
+          unzip -q "$ZIP_FILE" -d build-src
 
-          echo "محتويات المشروع:"
-          find build-src -maxdepth 3 -type f | head -100
-
-      - name: العثور على مجلد المشروع
+      - name: العثور على مشروع Android
         run: |
           SETTINGS=$(find build-src -name settings.gradle -type f | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: لم يتم العثور على settings.gradle"
+            echo "لم يتم العثور على settings.gradle"
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
 
+          echo "مجلد المشروع: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-          echo "المشروع:"
-          echo "$PROJECT_DIR"
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -66,6 +76,6 @@ jobs:
       - name: رفع APK
         uses: actions/upload-artifact@v4
         with:
-          name: SyriaMap-FINAL-APK
+          name: SyriaMap-APK
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
