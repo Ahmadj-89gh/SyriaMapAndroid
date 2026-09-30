@@ -1,4 +1,4 @@
-name: Build SyriaMap APK
+name: بناء تطبيق خريطة سوريا APK
 
 on:
   workflow_dispatch:
@@ -21,28 +21,34 @@ jobs:
           java-version: '17'
 
       - name: إعداد Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: false
 
-      - name: تثبيت أدوات Android
+      - name: قبول تراخيص Android وتثبيت الأدوات
         run: |
-          yes | sdkmanager --licenses || true
+          yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: فك ملف المشروع
+      - name: فك ملفات المشروع
         run: |
           mkdir -p build-src
-          unzip -q *.zip -d build-src
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
+          echo "ملف المشروع: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d build-src
 
       - name: العثور على مجلد المشروع
         run: |
           SETTINGS=$(find build-src -name settings.gradle -type f | head -n 1)
+
           if [ -z "$SETTINGS" ]; then
             echo "لم يتم العثور على settings.gradle"
             exit 1
           fi
+
           PROJECT_DIR=$(dirname "$SETTINGS")
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "المشروع موجود في: $PROJECT_DIR"
+          echo "مجلد المشروع: $PROJECT_DIR"
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -58,5 +64,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SyriaMap-APK
-          path: |
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
