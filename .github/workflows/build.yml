@@ -1,4 +1,4 @@
-name: بناء تطبيق خريطة سوريا APK
+name: SyriaMap APK
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: تحميل المستودع
+      - name: تحميل المشروع
         uses: actions/checkout@v4
 
       - name: إعداد Java 17
@@ -21,34 +21,37 @@ jobs:
           java-version: '17'
 
       - name: إعداد Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          accept-android-sdk-licenses: false
+        uses: android-actions/setup-android@v3
 
-      - name: قبول تراخيص Android وتثبيت الأدوات
+      - name: تثبيت أدوات Android
         run: |
-          yes | sdkmanager --licenses
+          yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: فك ملفات المشروع
+      - name: فك المشروع الأخير
         run: |
-          mkdir -p build-src
-          ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
-          echo "ملف المشروع: $ZIP_FILE"
-          unzip -q "$ZIP_FILE" -d build-src
+          rm -rf build-src
+          mkdir build-src
+          unzip -q "SyriaMap_FINAL_LATEST_FEATURES.zip" -d build-src
+
+          echo "محتويات المشروع:"
+          find build-src -maxdepth 3 -type f | head -100
 
       - name: العثور على مجلد المشروع
         run: |
           SETTINGS=$(find build-src -name settings.gradle -type f | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
-            echo "لم يتم العثور على settings.gradle"
+            echo "ERROR: لم يتم العثور على settings.gradle"
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
+
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "مجلد المشروع: $PROJECT_DIR"
+
+          echo "المشروع:"
+          echo "$PROJECT_DIR"
 
       - name: إعداد Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -63,5 +66,6 @@ jobs:
       - name: رفع APK
         uses: actions/upload-artifact@v4
         with:
-          name: SyriaMap-APK
+          name: SyriaMap-FINAL-APK
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
